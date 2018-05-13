@@ -1,11 +1,17 @@
 from rest_framework import serializers
-from snippets.models import Snippet, LANGUAGE_CHOICES, STYLE_CHOICES
+from snippets.models import Snippet, Stock, LANGUAGE_CHOICES, STYLE_CHOICES
 
 
 class SnippetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Snippet
         fields = ('id', 'title', 'code', 'linenos', 'language', 'style')
+
+class StockSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Stock
+        fields = ('ticker', 'price', 'volatility','created','data_type','start_date','end_date')
+
     # id = serializers.IntegerField(read_only=True)
     # title = serializers.CharField(required=False,
     #                               allow_blank=True,

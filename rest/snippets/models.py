@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 from pygments.lexers import get_all_lexers
 from pygments.styles import get_all_styles
 # Create your models here.
@@ -20,5 +21,16 @@ class Snippet(models.Model):
                              default='friendly',
                              max_length=100)
 
+    class Meta:
+        ordering=('created',)
+
+class Stock(models.Model):
+    ticker = models.CharField(default='SPY', max_length = 10)
+    created = models.DateTimeField(auto_now_add=True)
+    price = models.FloatField(default = -1)
+    data_type = models.CharField(default='adjClose', max_length = 20)
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(default=timezone.now)
+    volatility = models.FloatField(default=-1)
     class Meta:
         ordering=('created',)
