@@ -3,19 +3,25 @@
 # from django.views.decorators.csrf import csrf_exempt
 # from rest_framework.renderers import JSONRenderer
 # from rest_framework.parsers import JSONParser
-from django.http import Http404
 # from rest_framework import status
 # from rest_framework.response import Response
 # from rest_framework.decorators import api_view
 # from rest_framework import mixins
-from rest_framework.views import APIView
+
+from django.http import Http404
+from django.contrib.auth.models import User
+
 from snippets.models import Snippet, Stock
-from snippets.serializers import SnippetSerializer, StockSerializer
+from snippets.serializers import SnippetSerializer, StockSerializer, UserSerializer
+from snippets.permissions import IsOwnerOrReadOnly
+
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework import status
 from rest_framework import generics
+from rest_framework import permissions
+
 from tiingo import TiingoClient
-# import pandas as pd
 import numpy as np
 import datetime
 
@@ -25,10 +31,18 @@ client = TiingoClient({'api_key':"9010cf77d64c7b3bce13ee565d1b95604b04c0f2"})
 class SnippetList(generics.ListCreateAPIView):
     queryset = Snippet.objects.all()
     serializer_class = SnippetSerializer
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
+
+    def perform_create(self, serializer):
+        serializer.save(owner=self.request.user)
+
 
 class SnippetDetail(generics.RetrieveUpdateDestroyAPIView):
     queryset = Snippet.objects.all()
     serializer_class = SnippetSerializer
+    permission_classes = (permissions.IsAuthenticatedOrReadOnly,
+                      IsOwnerOrReadOnly,)
+
 
 class StockDetail(APIView):
     def get(self, request, ticker, format=None):
@@ -60,6 +74,16 @@ class StockDetail(APIView):
         log_returns = np.log(prices[1:])-np.log(prices[:-1])
         variance = np.var(log_returns)
         return (variance**0.5)*(252**0.5)
+
+
+class UserList(generics.ListAPIView):
+    querysest = User.objects.all()
+    serializer_class = UserSerializer
+
+
+class UserDetail(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
 # class SnippetList(mixins.ListModelMixin,
 #                   mixins.CreateModelMixin,
 #                   mixins.GenericAPIView):
