@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from snippets.models import Snippet, Stock, LANGUAGE_CHOICES, STYLE_CHOICES
+from snippets.models import LANGUAGE_CHOICES, STYLE_CHOICES, Snippet, Stock, Position
 from django.contrib.auth.models import User
 
 class SnippetSerializer(serializers.ModelSerializer):
@@ -9,16 +9,51 @@ class SnippetSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'code', 'linenos', 'language', 'style','owner')
 
 class UserSerializer(serializers.ModelSerializer):
-    snippets =  serializers.PrimaryKeyRelatedField(many=True, queryset=Snippet.objects.all())
-
+    # snippets =  serializers.PrimaryKeyRelatedField(many=True, queryset=Snippet.objects.all())
+    # portfolio = serializers.p
+    password = serializers.CharField(write_only=True)
     class Meta:
         model = User
-        fields = ('id','username','snippets')
+        fields = ('id','username', 'password')
+
+    def create(self, validated_data):
+        user = User.objects.create(
+            username=validated_data['username']
+        )
+        user.set_password(validated_data['password'])
+        user.save()
+        return user
+
 
 class StockSerializer(serializers.ModelSerializer):
     class Meta:
         model = Stock
         fields = ('ticker', 'price', 'volatility','created','data_type','start_date','end_date')
+
+class PositionSerializer(serializers.ModelSerializer):
+    owner = serializers.ReadOnlyField(source='owner.username')
+    class Meta:
+        model = Position
+        fields = ('ticker','owner')
+
+
+# from django.contrib.auth import get_user_model # If used custom user model
+#
+# UserModel = get_user_model()
+# class UserSerializer(serializers.ModelSerializer):
+#     password = serializers.CharField(write_only=True)
+#
+#     def create(self, validated_data):
+#         user = UserModel.objects.create(
+#             username=validated_data['username']
+#         )
+#         user.set_password(validated_data['password'])
+#         user.save()
+#
+#         return user
+#
+#     class Meta:
+#         model = UserModel
 
     # id = serializers.IntegerField(read_only=True)
     # title = serializers.CharField(required=False,

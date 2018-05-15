@@ -8,7 +8,8 @@ urlpatterns = [
     url(r'^stock/(?P<ticker>[\w-]+)/$', views.StockDetail.as_view()),
     url(r'^users/$', views.UserList.as_view()),
     url(r'^users/(?P<pk>[0-9]+)/$', views.UserDetail.as_view()),
-    
+    url(r'^newuser/$', views.CreateUserView.as_view()),
+    url(r'^portfolio/$', views.PositionList.as_view()),
 ]
 
 urlpatterns = format_suffix_patterns(urlpatterns)

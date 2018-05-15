@@ -12,6 +12,33 @@ LEXERS = [item for item in get_all_lexers() if item[1]]
 LANGUAGE_CHOICES = sorted([(item[1][0], item[0]) for item in LEXERS])
 STYLE_CHOICES = sorted((item, item) for item in get_all_styles())
 
+# class Portfolio(models.Model):
+
+class Stock(models.Model):
+    ticker = models.CharField(default='SPY', max_length = 10)
+    created = models.DateTimeField(auto_now_add=True)
+    price = models.FloatField(default = -1)
+    data_type = models.CharField(default='adjClose', max_length = 20)
+    start_date = models.DateTimeField(default=timezone.now)
+    end_date = models.DateTimeField(default=timezone.now)
+    volatility = models.FloatField(default=-1)
+    class Meta:
+        ordering=('created',)
+
+class Position(models.Model):
+    ticker = models.CharField(default='SPY', max_length = 10)
+    average_cost = models.FloatField(default = -1)
+    start_date = models.DateTimeField(default=timezone.now)
+    # end_date = models.DateTimeField(default=timezone.now)
+    market_value = models.FloatField(default = -1)
+    quantity = models.IntegerField(default=0)
+    volatility = models.FloatField(default=-1)
+    owner = models.ForeignKey('auth.User', related_name='positions', on_delete=models.CASCADE)
+
+    class Meta:
+        ordering=('market_value',)
+
+
 class Snippet(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     title = models.CharField(max_length=100, blank=True, default='')
@@ -40,14 +67,3 @@ class Snippet(models.Model):
                                   full=True, **options)
         self.highlighted = highlight(self.code, lexer, formatter)
         super(Snippet, self).save(*args, **kwargs)
-
-class Stock(models.Model):
-    ticker = models.CharField(default='SPY', max_length = 10)
-    created = models.DateTimeField(auto_now_add=True)
-    price = models.FloatField(default = -1)
-    data_type = models.CharField(default='adjClose', max_length = 20)
-    start_date = models.DateTimeField(default=timezone.now)
-    end_date = models.DateTimeField(default=timezone.now)
-    volatility = models.FloatField(default=-1)
-    class Meta:
-        ordering=('created',)
