@@ -1,6 +1,8 @@
 from rest_framework import serializers
-from snippets.models import LANGUAGE_CHOICES, STYLE_CHOICES, Snippet, Stock, Position
+from snippets.models import LANGUAGE_CHOICES, STYLE_CHOICES, Snippet #, Stock, Position
 from django.contrib.auth.models import User
+from django.utils import timezone
+
 
 class SnippetSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
@@ -9,8 +11,6 @@ class SnippetSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'code', 'linenos', 'language', 'style','owner')
 
 class UserSerializer(serializers.ModelSerializer):
-    # snippets =  serializers.PrimaryKeyRelatedField(many=True, queryset=Snippet.objects.all())
-    # portfolio = serializers.p
     password = serializers.CharField(write_only=True)
     class Meta:
         model = User
@@ -25,16 +25,44 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 
-class StockSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Stock
-        fields = ('ticker', 'price', 'volatility','created','data_type','start_date','end_date')
 
-class PositionSerializer(serializers.ModelSerializer):
-    owner = serializers.ReadOnlyField(source='owner.username')
-    class Meta:
-        model = Position
-        fields = ('ticker','owner')
+# import csv
+# import os
+#
+# workpath = os.path.dirname(os.path.abspath(__file__)) #Returns the Path your .py file is in
+# c = open(os.path.join(workpath, 'supported_tickers.csv'), 'rt')
+#
+# valid_tickers = set()
+# with c as inputfile:
+#     for row in csv.reader(inputfile):
+#         if row[0] not in valid_tickers:
+#             valid_tickers.add(row[0])
+#
+# class StockSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = Stock
+#         fields = ('ticker', 'price', 'volatility',)
+#
+#     def CheckLastUpdated(self, last_updated):
+#         if last_updated.date() == timezone.now():
+#             return True
+#
+#
+# class PositionSerializer(serializers.ModelSerializer):
+#     owner = serializers.ReadOnlyField(source='owner.username')
+#     class Meta:
+#         model = Position
+#         fields = ('ticker','start_date','quantity','owner')
+#
+#     def validate_ticker(self, ticker):
+#         if ticker.upper() not in valid_tickers:
+#             raise serializers.ValidationError("Please provide a valid ticker name")
+#         return ticker.upper()
+#
+#     def validate_quantity(self, quantity):
+#         if quantity == 0:
+#             raise serializers.ValidationError("You cannot initialize your position with 0 stock ")
+#         return quantity
 
 
 # from django.contrib.auth import get_user_model # If used custom user model
