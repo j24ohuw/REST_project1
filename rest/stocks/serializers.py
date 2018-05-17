@@ -19,20 +19,14 @@ with c as inputfile:
 class StockSerializer(serializers.ModelSerializer):
     class Meta:
         model = Stock
-        fields = ('ticker', 'price', 'volatility',)
-
-    # def CheckLastUpdated(self, last_updated):
-    #     if last_updated.date() == timezone.now().date():
-    #         return True
-    #     else:
-    #         return False
+        fields = ('ticker', 'price', 'volatility','last_updated',)
 
 
 class PositionSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
     class Meta:
         model = Position
-        fields = ('ticker','start_date','quantity','owner')
+        fields = ('ticker', 'owner',)#'weight', 'price', 'volatility',)
 
     def validate_ticker(self, ticker):
         if ticker.upper() not in valid_tickers:
