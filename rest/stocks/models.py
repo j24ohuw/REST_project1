@@ -8,6 +8,7 @@ class Stock(models.Model):
     volatility = models.FloatField(default=-1)
     last_updated = models.DateTimeField(default=timezone.now)
     created = models.DateTimeField(default=timezone.now)
+    # returns = models.ListField(default =[])
     # data_type = models.CharField(default='adjClose', max_length = 20)
     # start_date = models.DateTimeField(default=timezone.now)
     # end_date = models.DateTimeField(default=timezone.now)

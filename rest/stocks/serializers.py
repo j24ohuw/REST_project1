@@ -21,6 +21,25 @@ class StockSerializer(serializers.ModelSerializer):
         model = Stock
         fields = ('ticker', 'price', 'volatility','last_updated',)
 
+    def validate_ticker(self, ticker):
+        if ticker.upper() not in valid_tickers:
+            raise serializers.ValidationError("Please provide a valid ticker name")
+        return ticker.upper()
+
+    def to_representation(self, obj):
+        # get the original representation
+        ret = super(StockSerializer, self).to_representation(obj)
+        ret.pop('last_updated')
+        return ret
+        # remove 'url' field if mobile request
+        # if is_mobile_platform(self.context.get('request', None)):
+        #     ret.pop('url')
+
+        # here write the logic to check whether `elements` field is to be removed
+        # pop 'elements' from 'ret' if condition is True
+
+        # return the modified representation
+
 
 class PositionSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
