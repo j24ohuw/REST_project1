@@ -1,18 +1,23 @@
+from django.http import Http404
 from django.contrib.auth.models import User
 from django.utils import timezone
 from stocks.models import Stock, Position
-from stocks.serializers import StockSerializer, PositionSerializer
+from stocks.serializers import StockSerializer, PositionSerializer#, UserSerializer
 from django.core.exceptions import MultipleObjectsReturned
 import stocks.ERC as ERC
-# from stocks.permissions import IsOwnerOrReadOnly
 
-from rest_framework import mixins
+from rest_framework import viewsets #mixins
+from rest_framework import renderers
 from rest_framework.generics import CreateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.decorators import action
+from rest_framework.decorators import api_view
+from rest_framework.reverse import reverse
 from rest_framework import status
 from rest_framework import generics
 from rest_framework import permissions
+from stocks.permissions import IsOwnerOrReadOnly
 
 from tiingo import TiingoClient
 import numpy as np
@@ -21,14 +26,25 @@ import datetime
 client = TiingoClient({'api_key':"9010cf77d64c7b3bce13ee565d1b95604b04c0f2"})
 
 def hist(ticker):
-    quote = client.get_ticker_price(ticker,
-             fmt='json',
-             endDate = datetime.datetime.now(),
-             startDate = datetime.datetime.now()-datetime.timedelta(days=90),
-             frequency = 'daily'
-             )
-    return quote
+    try:
+        quote = client.get_ticker_price(ticker,
+                     fmt='json',
+                     endDate = datetime.datetime.now(),
+                     startDate = datetime.datetime.now()-datetime.timedelta(days=90),
+                     frequency = 'daily'
+                     )
+        return quote
+    except Exception as e:
+        raise Http404
 
+# class PositionHighlight(generics.GenericAPIView):
+#
+#     queryset = Position.objects.all()
+#     renderer_classes = (renderers.StaticHTMLRenderer)
+#
+#     def get(self, request, *args, **kwargs):
+#         position = self.get_object()
+#         return Response(position.highlighted)
 
 class StockDetail(APIView):
 
@@ -38,16 +54,6 @@ class StockDetail(APIView):
         except Stock.DoesNotExist:
             return None
 
-    def get_hist(self, request, ticker):
-        stock = Stock(ticker=ticker)
-        serializer = StockSerializer(stock, data=request.data)
-        serializer.validate_ticker(ticker)
-        try:
-            quote = hist(ticker)
-            return quote
-        except Exception as e:
-            return Response({'Error':str(e)})
-
     def get(self, request, ticker, format=None):
         #If the stock already exists and it has already been updated today,
         #then simply return object response
@@ -56,16 +62,18 @@ class StockDetail(APIView):
             serializer = StockSerializer(stock)
             return Response(serializer.data)
         #data is either not up to date or does not exist. Call Put
-        return self.put(request= request, ticker=ticker)
+        return self.post(request= request, ticker=ticker)
 
     def post(self, request, ticker):
-        quote = self.get_hist(request=request, ticker=ticker)
+        #get historical data
+        quote = hist(ticker=ticker)
+        #register data on a Stock instance
         stock = Stock(ticker=ticker)
         stock.price = quote[-1]['adjClose']
-        # stock.volatility = float(self.volatility(quote))
         stock.last_updated = timezone.now()
-        serializer = StockSerializer(stock, data=request.data)
+        serializer = StockSerializer(stock, data=request.data) #serialize stock instance
         if serializer.is_valid():
+            #valid; return Response serializer data
             serializer.save()
             return Response(serializer.data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -76,58 +84,44 @@ class StockDetail(APIView):
             stock.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
-    def get_volatility(self, request, ticker):
-        quote = self.get_hist(request=request, ticker=ticker)
-        prices = np.array([data['adjClose'] for data in quote])
-        log_returns = np.log(prices[1:])-np.log(prices[:-1])
-        variance = np.var(log_returns)
-        annual_volaility= (variance**0.5)*(252**0.5)
-
-class volatility(StockDetail):
+class Volatility(StockDetail):
     def get(self, request, ticker):
         return self.post(request, ticker)
 
-
     def post(self, request, ticker):
-        quote = self.get_hist(request, ticker=ticker)
+        quote = hist(ticker)
         prices = np.array([data['adjClose'] for data in quote])
         log_returns = np.log(prices[1:])-np.log(prices[:-1])
         variance = np.var(log_returns)
         volatility= (variance**0.5)*(252**0.5)
-        # stock = Stock(volatility = volatility)
-        # serializer = StockSerializer(stock, data=request.data)
-        # serializer.is_valid()
         return Response({'volatility': '{:.2%}'.format(volatility)})
 
-
-# @api_view(['GET', 'POST'])
-# def snippet_list(request,format=None):
-#     """
-#     List all snippets, or create a new snippet.
-#     """
-#     if request.method == 'GET':
-#         snippets = Snippet.objects.all()
-#         serializer = SnippetSerializer(snippets, many=True)
-#         return Response(serializer.data)
-#
-#     elif request.method == "POST":
-#         # data = JSONParser().parse(request)
-#         serializer = SnippetSerializer(data=data)
-#         if serializer.is_valid():
-#             serializer.save()
-#             return Response(serializer.data, status=status.HTTP_201_CREATED)
-#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 """
 """
-class PositionList(generics.ListCreateAPIView):
+
+@api_view(['GET'])
+def position_root(request, username):
+    print(username, request)
+    return Response({
+    'positions': reverse('position-list', kwargs={'username':username} ,request=request)
+    })
+
+class PositionList(viewsets.ModelViewSet):
     queryset = Position.objects.all()
     serializer_class = PositionSerializer
     permission_classes = (permissions.IsAuthenticatedOrReadOnly,)
-    lookup_field = 'username'
+    # lookup_field = 'owner'
+
+    def get_queryset(self):
+        if self.kwargs.get('username', None) != None:
+            owner = User.objects.filter(username = self.kwargs['username'])
+        else:
+            owner = User.objects.first()
+        return Position.objects.filter(owner=owner)
+
     """
     Create a new position only if the position does not exist for the same user"""
-    def create(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         if self.queryset.filter(ticker=request.data['ticker'],
                                 owner=request.user).exists():
             return Response(status=status.HTTP_400_BAD_REQUEST)
@@ -147,46 +141,92 @@ class PositionList(generics.ListCreateAPIView):
             object.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    # @action(detail=True, renderer_classes=[renderers.StaticHTMLRenderer])
     def list(self, request, *args, **kwargs):
-        queryset = self.queryset.filter(owner=request.user)
+        # if kwargs.get('username',None) != None:
+        #     #first get user object given the user name
+        #     owner = User.objects.get(username=kwargs['username'])
+        #     #filter position list by owner
+        #     queryset = self.queryset.filter(owner=owner)
+        # else:
+        queryset = self.get_queryset()
         serializer = self.get_serializer(queryset, many=True)
         for query in serializer.data:
             ticker = query['ticker']
             stock_data = StockDetail().get(request, ticker=ticker).data
             query['price'] = stock_data['price']
-            query['volatility'] = '{:.2%}'.format(stock_data['volatility'])
-        data = self.get_weights(serializer.data)
-        weights = self.get_ERC(serializer.data)
+        return Response(serializer.data)
+
+    @action(detail=False)
+    def get_volatility(self, request, *args, **kwargs):
+        #if username is passed in kwargs filter queryset with username
+        positions = self.queryset
+        #pass queryset to a position serializer
+        serializer = PositionSerializer(positions, many=True)
+        #attach volatility
+        for position in serializer.data:
+            ticker = position['ticker']
+            position['volatility'] = Volatility().get(request, ticker=ticker).data['volatility']
+        #return data
+        return Response(serializer.data)
+
+    @action(detail=False)
+    def get_volatility_weighted(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.queryset, many=True)
+        vol_arr = []
+        for stock in serializer.data:
+            volatility = Volatility().get(request, ticker = stock['ticker']).data['volatility']
+            inverse_volatility = float(volatility[:-1])**-1
+            vol_arr.append(inverse_volatility)
+            # vol_arr.append(float(position['volatility'][:-1])**-1)
+        weights = [i/sum(vol_arr) for i in vol_arr]
+        for i, stock in enumerate(serializer.data):
+            stock['1/n weight'] = '{:.2%}'.format(weights[i])
+        return Response(serializer.data)
+
+    @action(detail=False)
+    def get_ERC(self, request, username):
+        serializer = self.get_serializer(self.queryset, many=True)
+        returns = []
+        for stock in serializer.data:
+            #get historical price data
+            quote = hist(stock['ticker'])
+            prices = np.array([data['adjClose'] for data in quote])
+            #compute log returns and append to the list of returns
+            log_returns = np.log(prices[1:])-np.log(prices[:-1])
+            returns.append(log_returns)
+        #pass the log returns to compute weights of Equal Risk Contribution portfolio
+        weights = ERC.construct_ERC(returns)
+        for i, stock in enumerate(serializer.data):
+            stock['ERC weight'] = '{:.2%}'.format(weights[i])
         return Response(serializer.data)
 
 
-    def get_weights(self, data):
-        vol_arr = []
-        for position in data:
-            vol_arr.append(float(position['volatility'][:-1])**-1)
-        weights = [i/sum(vol_arr) for i in vol_arr]
-        for i, position in enumerate(data):
-            position['1/n weight'] = '{:.2%}'.format(weights[i])
-        return data
+# class PositionDetail(generics.RetrieveUpdateDestroyAPIView):
+#     queryset = Position.objects.all()
+#     serializer_class = PositionSerializer
+#     permission_classes = (permissions.IsAuthenticatedOrReadOnly,
+#                       IsOwnerOrReadOnly,)
+#     lookup_field = 'owner'
 
-    def get_ERC(self, data):
-        returns = []
-        for stock in data:
-            quote = client.get_ticker_price(stock['ticker'],
-                     fmt='json',
-                     endDate = datetime.datetime.now(),
-                     startDate = datetime.datetime.now()-datetime.timedelta(days=90),
-                     frequency = 'daily'
-                     )
-            prices = np.array([data['adjClose'] for data in quote])
-            log_returns = np.log(prices[1:])-np.log(prices[:-1])
-            returns.append(log_returns)
-        weights = ERC.construct_ERC(returns)
-        for i, stock in enumerate(data):
-            stock['ERC weight'] = '{:.2%}'.format(weights[i])
-        return data
-
-
+# class UserList(generics.ListAPIView):
+#     queryset = User.objects.all()
+#     serializer_class = UserSerializer
+#     # lookup_field = 'username'
+#
+# class UserDetail(generics.RetrieveAPIView):
+#     queryset = User.objects.all()
+#     serializer_class = UserSerializer
+#     lookup_field = 'username'
+#
+#
+# class CreateUserView(CreateAPIView):
+#
+#     model = User
+#     permission_classes = [
+#         permissions.AllowAny
+#     ]
+#     serializer_class = UserSerializer
 
 
 # class PositionDetail(generics.RetrieveUpdateDestroyAPIView):

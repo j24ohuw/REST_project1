@@ -43,10 +43,16 @@ class StockSerializer(serializers.ModelSerializer):
 
 class PositionSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
+    # highlight = serializers.HyperlinkedIdentityField(view_name='position-highlight', format='html')
+    # author = UserSerializer()
+
     class Meta:
         model = Position
-        fields = ('ticker', 'owner',)#'weight', 'price', 'volatility',)
-
+        fields = ('ticker', 'owner')#,'highlight','url')#'weight', 'price', 'volatility',)
+        # lookup_field = 'owner'
+        # extra_kwargs = {
+        #     'url': {'lookup_field': 'owner'}
+        # }
     def validate_ticker(self, ticker):
         if ticker.upper() not in valid_tickers:
             raise serializers.ValidationError("Please provide a valid ticker name")
@@ -56,3 +62,28 @@ class PositionSerializer(serializers.ModelSerializer):
         if quantity == 0:
             raise serializers.ValidationError("You cannot initialize your position with 0 stock ")
         return quantity
+
+    def to_representation(self, obj):
+        # get the original representation
+        ret = super(PositionSerializer, self).to_representation(obj)
+        ret.pop('owner')
+        return ret
+
+
+# class UserSerializer(serializers.ModelSerializer):
+#     # positions = serializers.HyperlinkedRelatedField(many=True, view_name='position-list',lookup_field='owner', lookup_url_kwarg='username', read_only=True)
+#     password = serializers.CharField(write_only=True)
+#     class Meta:
+#         model = User
+#         fields = ('id','username', 'password','positions', 'url')
+#         lookup_field = 'username'
+#         extra_kwargs = {
+#             'url': {'lookup_field': 'username'}
+#         }
+#     def create(self, validated_data):
+#         user = User.objects.create(
+#             username=validated_data['username']
+#         )
+#         user.set_password(validated_data['password'])
+#         user.save()
+#         return user

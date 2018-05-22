@@ -1,20 +1,34 @@
 from rest_framework import serializers
 from snippets.models import LANGUAGE_CHOICES, STYLE_CHOICES, Snippet #, Stock, Position
+from stocks.models import Stock, Position
+from stocks.serializers import PositionSerializer
 from django.contrib.auth.models import User
 from django.utils import timezone
 
 
 class SnippetSerializer(serializers.ModelSerializer):
     owner = serializers.ReadOnlyField(source='owner.username')
+    highlight = serializers.HyperlinkedIdentityField(view_name='snippet-highlight', format='html')
+
     class Meta:
         model = Snippet
-        fields = ('id', 'title', 'code', 'linenos', 'language', 'style','owner')
+        fields = ('url', 'id', 'highlight', 'owner',
+                  'title', 'code', 'linenos', 'language', 'style')
 
-class UserSerializer(serializers.ModelSerializer):
+
+class UserSerializer(serializers.HyperlinkedModelSerializer):
+    positions = serializers.HyperlinkedIdentityField(view_name='position-list', lookup_field='username')
+    snippets = serializers.HyperlinkedIdentityField(view_name='snippet-list', lookup_field='username')
     password = serializers.CharField(write_only=True)
+
     class Meta:
         model = User
-        fields = ('id','username', 'password')
+        fields = ('id','username', 'password', 'url','snippets', 'positions')#, 'position_listing')
+        lookup_field = 'username'
+        extra_kwargs = {
+            'url': {'lookup_field': 'username'},
+            # 'position_listing': {'lookup_field': 'username'}
+        }
 
     def create(self, validated_data):
         user = User.objects.create(

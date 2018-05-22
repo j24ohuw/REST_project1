@@ -26,6 +26,7 @@ class Position(models.Model):
     owner = models.ForeignKey('auth.User', related_name='positions', on_delete=models.CASCADE)
     # end_date = models.DateTimeField(default=timezone.now)
     price = models.FloatField(default = -1)
+    # highlighted = models.TextField()
 
     class Meta:
         ordering=('market_value',)
