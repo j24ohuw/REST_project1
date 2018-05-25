@@ -1,10 +1,15 @@
-from rest_framework import serializers
-from stocks.models import Stock, Position
-from django.contrib.auth.models import User
-from django.utils import timezone
-
+#standard libs
+from __future__ import absolute_import
 import csv
 import os
+#core django app imports
+from django.utils import timezone
+from django.contrib.auth.models import User
+#third party imports
+from rest_framework import serializers
+#your app imports
+from .models import Stock, Position
+
 
 workpath = os.path.dirname(os.path.abspath(__file__)) #Returns the Path your .py file is in
 c = open(os.path.join(workpath, 'supported_tickers.csv'), 'rt')
@@ -53,10 +58,10 @@ class PositionSerializer(serializers.ModelSerializer):
         # extra_kwargs = {
         #     'url': {'lookup_field': 'owner'}
         # }
-    def validate_ticker(self, ticker):
-        if ticker.upper() not in valid_tickers:
-            raise serializers.ValidationError("Please provide a valid ticker name")
-        return ticker.upper()
+    # def validate_ticker(self, ticker):
+    #     if ticker.upper() not in valid_tickers:
+    #         raise serializers.ValidationError("Please provide a valid ticker name")
+    #     return ticker.upper()
 
     def validate_quantity(self, quantity):
         if quantity == 0:

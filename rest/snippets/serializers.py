@@ -1,9 +1,15 @@
-from rest_framework import serializers
-from snippets.models import LANGUAGE_CHOICES, STYLE_CHOICES, Snippet #, Stock, Position
-from stocks.models import Stock, Position
-from stocks.serializers import PositionSerializer
+# Stdlib imports
+from __future__ import absolute_import
+# Core Django imports
 from django.contrib.auth.models import User
 from django.utils import timezone
+# Third-party app imports
+from rest_framework import serializers
+# Imports from your apps
+from .models import LANGUAGE_CHOICES, STYLE_CHOICES, Snippet
+from stocks.models import Stock, Position
+from stocks.serializers import PositionSerializer
+
 
 
 class SnippetSerializer(serializers.ModelSerializer):
@@ -18,7 +24,8 @@ class SnippetSerializer(serializers.ModelSerializer):
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
     positions = serializers.HyperlinkedIdentityField(view_name='position-list', lookup_field='username')
-    snippets = serializers.HyperlinkedIdentityField(view_name='snippet-list', lookup_field='username')
+    # snippets = serializers.HyperlinkedIdentityField(view_name='snippet-list', read_only=True, lookup_field='username')
+    snippets = serializers.HyperlinkedRelatedField(many=True, view_name='snippet-detail', read_only=True)
     password = serializers.CharField(write_only=True)
 
     class Meta:

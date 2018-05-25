@@ -1,6 +1,10 @@
+#standard libs
+from __future__ import absolute_import
+#core django app imports
 from django.db import models
 from django.utils import timezone
-
+#third party app imports
+#your apps
 
 class Stock(models.Model):
     ticker = models.CharField(default='SPY', max_length = 10)

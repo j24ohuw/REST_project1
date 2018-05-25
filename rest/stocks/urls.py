@@ -1,7 +1,12 @@
+#std libs
+from __future__ import absolute_import
+#core django
 from django.conf.urls import url, include
-from stocks import views
+#third party
 from rest_framework.urlpatterns import format_suffix_patterns
 from rest_framework.routers import DefaultRouter
+#your apps
+from . import views
 
 router = DefaultRouter()
 urlpatterns = [
